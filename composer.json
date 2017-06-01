@@ -1,0 +1,22 @@
+{
+    "name": "root/nntp-reader",
+    "description": "Library to read from an NNTP server",
+    "type": "library",
+    "require": {
+        "psr/log": "^1.0",
+        "symfony/console": "^3.2",
+        "mongodb/mongodb": "^1.1"
+    },
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Dominic Orme",
+            "email": "dominic.orme@googlemail.com"
+        }
+    ],
+    "autoload": {
+        "psr-4": {
+            "Net\\" : "src/"
+        }
+    }
+}
