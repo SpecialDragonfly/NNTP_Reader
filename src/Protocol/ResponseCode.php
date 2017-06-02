@@ -207,4 +207,9 @@ class ResponseCode
      * 'Capabilities list follows' (Draft)
      */
     const CAPABILITIES_FOLLOW = 101;
+
+    /**
+     * OVER call successful (RFC2980)
+     */
+    const OVERVIEW_INFORMATION_FOLLOWS = 224;
 }

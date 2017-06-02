@@ -59,4 +59,12 @@ interface DBInterface
      * @param array  $parameters
      */
     public function update(string $table, array $where, array $parameters);
+
+    /**
+     * @param string $sql
+     * @param array  $parameters
+     *
+     * @return array
+     */
+    public function raw(string $sql, array $parameters): array;
 }

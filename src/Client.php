@@ -117,9 +117,9 @@ class Client
      *
      * @return Generator
      */
-    public function getHeadersForGroup(string $group) : Generator
+    public function getHeadersForGroup(string $group, int $start = null) : Generator
     {
-        return $this->nntpClient->getHeadersForGroup($group);
+        return $this->nntpClient->getHeadersForGroup($group, $start);
     }
 
     /**
@@ -143,6 +143,16 @@ class Client
         return $this->fileFactory::createFromResponse($this->nntpClient->getBodyForArticle($group, $articleId));
     }
 
+    public function canRetrieveBody(string $messageId) : bool
+    {
+        return $this->nntpClient->canRetrieveBody($messageId);
+    }
+
+    public function isArticleExpired(string $messageId) : bool
+    {
+        return $this->nntpClient->isArticleExpired($messageId);
+    }
+
     /**
      * @param string $date
      * @param string $time
@@ -152,5 +162,10 @@ class Client
     public function getNewNewsgroups(string $date, string $time) : Generator
     {
         return $this->nntpClient->getNewGroups($date, $time);
+    }
+
+    public function raw($group, $command)
+    {
+        return $this->nntpClient->raw($group, $command);
     }
 }

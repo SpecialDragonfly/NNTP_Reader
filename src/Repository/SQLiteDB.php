@@ -91,7 +91,8 @@ class SQLiteDB extends SQLite3 implements DBInterface
         /** @var SQLite3Result $result */
         $statement->execute();
 
-        $statement = $this->prepare("SELECT * FROM $table WHERE $primaryKey = $primaryKeyValue");
+        $statement = $this->prepare("SELECT * FROM $table WHERE $primaryKey = :primaryKeyValue");
+        $statement->bindParam(':primaryKeyValue', $primaryKeyValue);
         $item = $statement->execute();
         $row = $item->fetchArray(SQLITE3_ASSOC);
 
@@ -157,5 +158,26 @@ class SQLiteDB extends SQLite3 implements DBInterface
         }
 
         $statement->execute();
+    }
+
+    public function raw(string $sql, array $parameters) : array
+    {
+        $statement = $this->prepare($sql);
+        foreach ($parameters as $key => $value) {
+            $statement->bindValue(':'.$key, $value);
+        }
+
+        $results = [];
+        $existingItems = $statement->execute();
+        $row = $existingItems->fetchArray(SQLITE3_ASSOC);
+        if ($row === false) {
+            return $results;
+        }
+
+        $results[] = $row;
+        while($row = $existingItems->fetchArray(SQLITE3_ASSOC)) {
+            $results[] = $row;
+        }
+        return $results;
     }
 }

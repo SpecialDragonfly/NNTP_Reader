@@ -1,8 +1,8 @@
 <?php
 namespace Net\Logger;
 
-use Net\Output\OutputInterface;
 use Psr\Log\LoggerInterface;
+use Symfony\Component\Console\Output\OutputInterface;
 
 class DebugLogger implements LoggerInterface
 {
@@ -26,7 +26,7 @@ class DebugLogger implements LoggerInterface
      */
     public function emergency($message, array $context = array())
     {
-        $this->output->output("Emergency: ".$message);
+        $this->output->writeln("Emergency: ".$message);
     }
 
     /**
@@ -42,7 +42,7 @@ class DebugLogger implements LoggerInterface
      */
     public function alert($message, array $context = array())
     {
-        $this->output->output("Alert: ".$message);
+        $this->output->writeln("Alert: ".$message);
     }
 
     /**
@@ -57,7 +57,7 @@ class DebugLogger implements LoggerInterface
      */
     public function critical($message, array $context = array())
     {
-        $this->output->output("Critical: ".$message);
+        $this->output->writeln("Critical: ".$message);
     }
 
     /**
@@ -71,7 +71,7 @@ class DebugLogger implements LoggerInterface
      */
     public function error($message, array $context = array())
     {
-        $this->output->output("Error: ".$message);
+        $this->output->writeln("Error: ".$message);
     }
 
     /**
@@ -87,7 +87,7 @@ class DebugLogger implements LoggerInterface
      */
     public function warning($message, array $context = array())
     {
-        $this->output->output("Warning: ".$message);
+        $this->output->writeln("Warning: ".$message);
     }
 
     /**
@@ -100,7 +100,7 @@ class DebugLogger implements LoggerInterface
      */
     public function notice($message, array $context = array())
     {
-        $this->output->output("Notice: ".$message);
+        $this->output->writeln("Notice: ".$message);
     }
 
     /**
@@ -115,7 +115,7 @@ class DebugLogger implements LoggerInterface
      */
     public function info($message, array $context = array())
     {
-        $this->output->output("Info: ".$message);
+        $this->output->writeln("Info: ".$message);
     }
 
     /**
@@ -128,7 +128,7 @@ class DebugLogger implements LoggerInterface
      */
     public function debug($message, array $context = array())
     {
-        $this->output->output("Debug: ".$message);
+        $this->output->writeln("Debug: ".$message);
     }
 
     /**
@@ -142,6 +142,6 @@ class DebugLogger implements LoggerInterface
      */
     public function log($level, $message, array $context = array())
     {
-        $this->output->output("Log: ".$message);
+        $this->output->writeln("Log: ".$message);
     }
 }

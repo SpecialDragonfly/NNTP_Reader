@@ -33,7 +33,8 @@ class GetArticles extends Command
         $this
             ->setName('newsgroups:get-articles')
             ->setDescription('Gets all articles in the specified newsgroup')
-            ->addArgument('group', InputArgument::REQUIRED, "The group to retrieve headers for");
+            ->addArgument('group', InputArgument::REQUIRED, "The group to retrieve headers for")
+            ->addArgument('start', InputArgument::OPTIONAL, "The article id to start from");
     }
 
     protected function execute(InputInterface $input, OutputInterface $output)
@@ -45,10 +46,10 @@ class GetArticles extends Command
         }
         $groupId = $result['id'];
 
-        $headers = $this->client->getHeadersForGroup($input->getArgument('group'));
+        $start = $input->hasArgument('start') ? $input->getArgument('start') : null;
+        $headers = $this->client->getHeadersForGroup($input->getArgument('group'), $start);
         /** @var Header $header */
         foreach($headers as $header) {
-            $output->writeln("Writing to db: ".$header->toString());
             $this->db->insertInto(
                 'articles',
                 [
@@ -61,7 +62,6 @@ class GetArticles extends Command
                     'has_nzb_file' => 0
                 ]
             );
-            $output->writeln("written");
         }
     }
 }

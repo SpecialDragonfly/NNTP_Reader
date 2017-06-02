@@ -289,86 +289,42 @@ class NntpClient
         }
     }
 
-    public function getHeadersForGroup($group) : Generator
+    public function getHeadersForGroup(string $group, int $start = null) : Generator
     {
-        $moreArticles = true;
-
         $groupResponse = $this->accessGroup($group);
-        $this->logger->error("Last message: ".$groupResponse['last']);
 
-        $articleId = $groupResponse['first'];
-        while ($moreArticles === true) {
-            $response = $this->sendCommand('HEAD '.$articleId);
-            switch ($response->getCode()) {
-                case ResponseCode::ARTICLE_FOLLOWS:
-                    list($articleId, $email) = explode(" ", $response->getText());
-                    $lines = $this->getTextResponse();
-                    $subject = '';
-                    $messageId = '';
-                    foreach ($lines as $line) {
-                        if (strpos($line, 'Subject') === 0) {
-                            $subject = str_replace('Subject: ', '', $line);
-                        }
-                        if (strpos($line, 'Message-ID: ') === 0) {
-                            $messageId = str_replace('Message-ID: ', '', $line);
-                        }
+        $firstArticleId = $start === null ? $groupResponse['first'] : null;
+        $lastArticleId = $groupResponse['last'];
+        $this->logger->info('Fetching headers '.$firstArticleId." to ".$lastArticleId);
+        $response = $this->sendCommand('OVER '.$firstArticleId."-".$lastArticleId);
+        $count = 0;
+        switch ($response->getCode()) {
+            case ResponseCode::OVERVIEW_INFORMATION_FOLLOWS:
+                $response = $this->getGeneratorTextResponse();
+                foreach ($response as $line) {
+                    if ($count % 1000 === 0) {
+                        $this->logger->info($count."/".$lastArticleId);
+                        $count++;
                     }
-                    yield new Header(
-                        $articleId,
-                        $subject,
-                        $messageId,
-                        implode("\n", $lines),
-                        $email
+                    list($articleId, $subject, $from, $date, $messageId, $xRef, $bytes, $lines, $meta) = explode(
+                        "\t",
+                        str_replace("\t\t", "\t", $line)
                     );
-                    break;
-                case ResponseCode::NO_ARTICLE_SELECTED:
-                    $this->logger->error('No article selected');
-                    break;
-                case ResponseCode::NO_SUCH_ARTICLE_NUMBER:
-                    $this->logger->error('No such article number');
-                    break;
-                case ResponseCode::NO_SUCH_ARTICLE_ID:
-                    $this->logger->error('No such article Id');
-                    break;
-            }
-
-            $moreArticles = $this->hasNextArticle();
-            try {
-                $nextArticle = $this->getNextArticle();
-                $articleId = $nextArticle->getArticleId();
-            } catch (\Exception $ex) {
-                $moreArticles = false;
-            }
-        };
-    }
-
-    public function getNextArticle() : NextArticleResponse
-    {
-        $response = $this->sendCommand('NEXT');
-        switch ($response->getCode()) {
-            case ResponseCode::ARTICLE_SELECTED:
-                $parts = explode(" ", $response->getText());
-                return new NextArticleResponse($parts[0], $parts[1]);
+                    yield new Header($articleId, $subject, $messageId, $line, $from);
+                }
                 break;
             case ResponseCode::NO_GROUP_SELECTED:
-            case ResponseCode::NO_ARTICLE_SELECTED:
-            case ResponseCode::NO_NEXT_ARTICLE:
-                throw new \Exception($response->getText(), $response->getCode());
-        }
-    }
-
-    public function getPreviousArticle() : array
-    {
-        $response = $this->sendCommand('LAST');
-        switch ($response->getCode()) {
-            case ResponseCode::ARTICLE_SELECTED:
-                $parts = explode(" ", $response->getText());
-                return $parts;
+                $this->logger->error("No group selected");
                 break;
-            case ResponseCode::NO_GROUP_SELECTED:
             case ResponseCode::NO_ARTICLE_SELECTED:
-            case ResponseCode::NO_PREVIOUS_ARTICLE:
-                throw new \Exception($response->getText(), $response->getCode());
+                $this->logger->error("No article selected");
+                break;
+            case ResponseCode::NO_SUCH_ARTICLE_NUMBER:
+                $this->logger->error("No such article number");
+                break;
+            case ResponseCode::NOT_PERMITTED:
+                $this->logger->error("Not permitted");
+                break;
         }
     }
 
@@ -379,6 +335,19 @@ class NntpClient
         $this->getTextResponse();
         $this->sendCommand('BODY '.$articleId);
         return $this->getTextResponse();
+    }
+
+    public function canRetrieveBody($messageId) : bool
+    {
+        $response = $this->sendCommand('BODY '.$messageId);
+        return $response->getCode() === ResponseCode::BODY_FOLLOWS;
+    }
+
+    public function isArticleExpired($messageId) : bool
+    {
+        $response = $this->sendCommand('BODY '.$messageId);
+        $this->logger->debug('isArticleExpired: '.$response->getCode());
+        return $response->getCode() === ResponseCode::NO_SUCH_ARTICLE_ID;
     }
 
     public function getNewGroups($date, $time)
@@ -405,6 +374,57 @@ class NntpClient
     protected function isConnected()
     {
         return (is_resource($this->socket) && (!feof($this->socket)));
+    }
+
+    private function getGeneratorTextResponse() : Generator
+    {
+        $line = '';
+
+        // Continue until connection is lost
+        while (!feof($this->socket)) {
+
+            // Retrieve and append up to 1024 characters from the server.
+            $received = @fgets($this->socket, 1024);
+
+            if ($received === false) {
+                throw new \Exception("Failed to read line from the socket");
+            }
+
+            $line .= $received;
+            $this->logger->debug('T Before: '.$line);
+
+            // Continue if the line is not terminated by CRLF
+            if (substr($line, -2) != "\r\n" || strlen($line) < 2) {
+                $this->logger->debug("T: Line not terminated correctly.");
+                continue;
+            }
+
+            // Remove CRLF from the end of the line
+            $line = substr($line, 0, -2);
+
+            // Check if the line terminates the textresponse
+            if ($line == '.') {
+                $this->logger->debug("T: Line started with a '.', returning data.");
+                // return all previous lines
+                return;
+            }
+
+            // If 1st char is '.' it's doubled (NNTP/RFC977 2.4.1)
+            if (substr($line, 0, 2) == '..') {
+                $line = substr($line, 1);
+            }
+            $this->logger->debug('T After: '.$line);
+
+            // Add the line to the array of lines
+            yield $line;
+
+            // Reset/empty $line
+            $line = '';
+        }
+
+        $this->logger->error('Broke out of reception loop! This shouldn\'t happen unless connection has been lost?');
+
+        throw new \Exception("End of stream! Connection lost?");
     }
 
     /**
@@ -510,7 +530,7 @@ class NntpClient
     private function getStatusResponse(): CommandResponse
     {
         // Retrieve a line (terminated by "\r\n") from the server.
-        $response = @fgets($this->socket, 256);
+        $response = fgets($this->socket, 256);
         if ($response === false) {
             throw new FailedToReadFromSocket("Failed to read from socket...!");
         }
@@ -543,16 +563,12 @@ class NntpClient
         }
     }
 
-    private function hasNextArticle() : bool
+    public function raw($group, $command) : array
     {
-        $response = $this->sendCommand('NEXT');
-        $this->logger->error("NexT: ".$response->getText());
-        return $response->getCode() === ResponseCode::ARTICLE_SELECTED;
-    }
+        $response = $this->accessGroup($group);
+        $this->logger->error(print_r($response, true));
+        $this->sendCommand($command);
 
-    private function hasPreviousArticle() : bool
-    {
-        $response = $this->sendCommand('LAST');
-        return $response->getCode() === ResponseCode::ARTICLE_SELECTED;
+        return $this->getTextResponse();
     }
 }
