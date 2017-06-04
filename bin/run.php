@@ -11,8 +11,9 @@ require_once '../vendor/autoload.php';
 
 include_once 'credentials.php';
 
-$encryption = new \Net\Encryption\NoEncryption(80);
-$db = new \Net\Repository\SQLiteDB(dirname(dirname(__FILE__)).'/data/sqlite.db');
+$encryption = new \Net\Encryption\NoEncryption(119);
+//$db = new \Net\Repository\SQLiteDB(dirname(dirname(__FILE__)).'/data/sqlite.db');
+$db = new \Net\Repository\MysqlDB($dsn, $mysqlUsername, $mysqlPassword);
 $logger = new \Net\Logger\InfoLogger(new ConsoleOutput());
 $fileFactory = new \Net\File\FileFactory();
 $client = new Client(new NntpClient($logger), $encryption, $host, $username, $password, $fileFactory);

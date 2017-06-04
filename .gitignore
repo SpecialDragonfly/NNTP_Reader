@@ -1,3 +1,4 @@
 /vendor
 /bin/credentials.php
 /.idea
+/data

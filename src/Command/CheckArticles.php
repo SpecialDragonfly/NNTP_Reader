@@ -40,8 +40,7 @@ class CheckArticles extends Command
         $sql = <<<SQL
 SELECT message_id FROM articles LEFT JOIN groups ON articles.group_id = groups.id
 SQL;
-
-        if ($input->hasArgument('group')) {
+        if ($input->hasArgument('group') && $input->getArgument('group') !== '') {
             $sql .= ' WHERE groups.group_name = :group_name';
             $parameters['group_name'] = $input->getArgument('group');
         }

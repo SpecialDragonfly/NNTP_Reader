@@ -113,7 +113,8 @@ class Client
     }
 
     /**
-     * @param string $group
+     * @param string   $group
+     * @param int|null $start
      *
      * @return Generator
      */

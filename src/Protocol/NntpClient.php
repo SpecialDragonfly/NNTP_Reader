@@ -289,27 +289,30 @@ class NntpClient
         }
     }
 
+    /**
+     * @param string   $group
+     * @param int|null $start
+     *
+     * @return Generator
+     */
     public function getHeadersForGroup(string $group, int $start = null) : Generator
     {
-        $groupResponse = $this->accessGroup($group);
 
-        $firstArticleId = $start === null ? $groupResponse['first'] : null;
+        $groupResponse = $this->accessGroup($group);
+        $firstArticleId = (($start === null) ? $groupResponse['first'] : $start);
         $lastArticleId = $groupResponse['last'];
-        $this->logger->info('Fetching headers '.$firstArticleId." to ".$lastArticleId);
-        $response = $this->sendCommand('OVER '.$firstArticleId."-".$lastArticleId);
-        $count = 0;
+
+        $this->logger->info('Fetching headers '.$firstArticleId." to end (".$lastArticleId.")");
+        $response = $this->sendCommand('OVER '.$firstArticleId."-");
         switch ($response->getCode()) {
             case ResponseCode::OVERVIEW_INFORMATION_FOLLOWS:
                 $response = $this->getGeneratorTextResponse();
                 foreach ($response as $line) {
-                    if ($count % 1000 === 0) {
-                        $this->logger->info($count."/".$lastArticleId);
-                        $count++;
-                    }
-                    list($articleId, $subject, $from, $date, $messageId, $xRef, $bytes, $lines, $meta) = explode(
-                        "\t",
-                        str_replace("\t\t", "\t", $line)
-                    );
+                    $parts = explode("\t", str_replace("\t\t", "\t", $line));
+                    $articleId = $parts[0];
+                    $subject = $parts[1];
+                    $from = $parts[2];
+                    $messageId = $parts[4];
                     yield new Header($articleId, $subject, $messageId, $line, $from);
                 }
                 break;
@@ -339,13 +342,13 @@ class NntpClient
 
     public function canRetrieveBody($messageId) : bool
     {
-        $response = $this->sendCommand('BODY '.$messageId);
-        return $response->getCode() === ResponseCode::BODY_FOLLOWS;
+        $response = $this->sendCommand('STAT '.$messageId);
+        return $response->getCode() === ResponseCode::ARTICLE_SELECTED;
     }
 
     public function isArticleExpired($messageId) : bool
     {
-        $response = $this->sendCommand('BODY '.$messageId);
+        $response = $this->sendCommand('STAT '.$messageId);
         $this->logger->debug('isArticleExpired: '.$response->getCode());
         return $response->getCode() === ResponseCode::NO_SUCH_ARTICLE_ID;
     }
@@ -563,11 +566,14 @@ class NntpClient
         }
     }
 
-    public function raw($group, $command) : array
+    public function raw($group, $commands) : array
     {
         $response = $this->accessGroup($group);
         $this->logger->error(print_r($response, true));
-        $this->sendCommand($command);
+        $commandsList = explode(",", $commands);
+        foreach ($commandsList as $command) {
+            $this->sendCommand($command);
+        }
 
         return $this->getTextResponse();
     }

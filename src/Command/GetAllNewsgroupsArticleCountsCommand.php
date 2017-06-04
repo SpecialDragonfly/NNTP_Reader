@@ -57,10 +57,10 @@ class GetAllNewsgroupsArticleCountsCommand extends Command
                 $output->writeln('<error>'.$ex->getMessage().'</error>');
             }
             $count++;
-            if ($count === 100) {
+            if ($count === 1000) {
                 $count = 0;
                 $end = microtime(true);
-                $output->writeln('<info>100 groups took: '.($end - $start).' seconds</info>');
+                $output->writeln('<info>1000 groups took: '.($end - $start).' seconds</info>');
                 $start = microtime(true);
             }
         }

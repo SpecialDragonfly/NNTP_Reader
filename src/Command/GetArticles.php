@@ -46,10 +46,25 @@ class GetArticles extends Command
         }
         $groupId = $result['id'];
 
-        $start = $input->hasArgument('start') ? $input->getArgument('start') : null;
+        $start = null;
+        if (!$input->hasArgument('start') || $input->getArgument('start') === null) {
+            // Get latest from DB.
+            $sql = <<<SQL
+SELECT MAX(article_id) as `number`
+FROM articles 
+LEFT JOIN groups ON articles.group_id = groups.id 
+WHERE groups.group_name = :group_name
+SQL;
+            $result = $this->db->raw($sql, ['group_name' => $input->getArgument('group')]);
+            $start = $result[0]['number'] + 1;
+        } else {
+            $start = $input->getArgument('start');
+        }
+
         $headers = $this->client->getHeadersForGroup($input->getArgument('group'), $start);
         /** @var Header $header */
         foreach($headers as $header) {
+            $output->writeln('<info>'.$header->getArticleId()." ".$header->getSubject().'</info>');
             $this->db->insertInto(
                 'articles',
                 [
